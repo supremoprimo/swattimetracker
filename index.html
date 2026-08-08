@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Worship Team Practice Hours Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#1B2430;
+  --ink-2:#232E3D;
+  --ink-3:#2C3849;
+  --paper:#F3EEE1;
+  --paper-2:#FBF8F0;
+  --brass:#C89B3C;
+  --brass-dim:#8F7028;
+  --burgundy:#7A2E2E;
+  --burgundy-2:#8F3A3A;
+  --ink-soft:#5A6472;
+  --line:#D8CFBC;
+  --line-dark:#3A4658;
+  --paper-text:#93A0B3;
+  --good:#3E6B4F;
+  --shadow: 0 8px 24px rgba(20,26,36,.18);
+  --radius: 14px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--ink);
+  color:var(--paper-2);
+  font-family:'Source Sans 3',system-ui,sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  letter-spacing:-0.01em;
+}
+button{font-family:inherit;}
+.mono{font-family:'JetBrains Mono',monospace;}
+#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+#print-root{display:none;}
+
+/* ---------- topbar ---------- */
+.topbar{
+  background:linear-gradient(180deg,var(--ink) 0%, var(--ink-2) 100%);
+  padding:18px 20px 14px;
+  position:sticky;top:0;z-index:20;
+  border-bottom:1px solid var(--line-dark);
+}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.brand{display:flex;flex-direction:column;line-height:1.15;}
+.brand .eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);
+  margin-bottom:3px;
+}
+.brand .title{font-size:19px;color:var(--paper-2);}
+.user-chip{display:flex;align-items:center;gap:8px;}
+.user-chip .who{text-align:right;font-size:12px;color:var(--paper-text);}
+.user-chip .who b{display:block;color:var(--paper-2);font-size:13.5px;font-weight:600;}
+.logout-btn{
+  background:none;border:1px solid var(--line-dark);color:var(--paper-text);
+  border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;
+}
+.logout-btn:hover{border-color:var(--brass);color:var(--brass);}
+.staff{height:14px;margin-top:12px;opacity:.55;}
+.staff svg{width:100%;height:100%;display:block;}
+
+/* ---------- content ---------- */
+.content{flex:1;padding:20px 20px 100px;background:var(--paper);color:var(--ink);}
+.content.narrow{padding-top:28px;}
+
+.card{
+  background:var(--paper-2);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:18px;
+  margin-bottom:16px;
+}
+.section-title{
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+  font-family:'JetBrains Mono',monospace;margin:0 0 10px;
+}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+.field input, .field select, .field textarea{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;
+  font-size:15px;background:#fff;color:var(--ink);font-family:inherit;
+}
+.field textarea{resize:vertical;min-height:70px;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--brass);outline-offset:1px;}
+.hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
+.error-text{color:var(--burgundy);font-size:12.5px;margin-top:8px;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 18px;border-radius:10px;border:none;font-size:15px;font-weight:600;
+  cursor:pointer;width:100%;font-family:'Source Sans 3',sans-serif;
+}
+.btn-primary{background:var(--ink);color:var(--paper-2);}
+.btn-primary:hover{background:var(--ink-2);}
+.btn-brass{background:var(--brass);color:var(--ink);}
+.btn-brass:hover{background:var(--brass-dim);color:#fff;}
+.btn-burgundy{background:var(--burgundy);color:#fff;}
+.btn-burgundy:hover{background:var(--burgundy-2);}
+.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);}
+.btn-ghost:hover{border-color:var(--ink);}
+.btn-sm{padding:8px 12px;font-size:13px;width:auto;}
+.btn-row{display:flex;gap:10px;}
+.link-btn{background:none;border:none;color:var(--brass-dim);font-weight:600;cursor:pointer;padding:0;font-size:14px;}
+
+/* ---------- login/register ---------- */
+.auth-wrap{padding-top:8px;}
+.auth-logo{
+  width:56px;height:56px;border-radius:50%;background:var(--ink);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 18px;
+}
+.auth-title{text-align:center;font-size:24px;margin:0 0 4px;}
+.auth-sub{text-align:center;color:var(--ink-soft);font-size:14px;margin:0 0 24px;}
+.role-toggle{display:flex;gap:8px;margin-bottom:14px;}
+.role-toggle button{flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-weight:600;cursor:pointer;font-size:13.5px;}
+.role-toggle button.active{border-color:var(--ink);background:var(--ink);color:#fff;}
+.notice{
+  background:#F6EFDD;border:1px solid #E4D4A8;color:#5A4A1E;
+  border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.5;margin-bottom:18px;
+}
+
+/* ---------- timer card ---------- */
+.timer-card{
+  background:var(--ink);color:var(--paper-2);border-radius:18px;padding:26px 20px 22px;
+  text-align:center;position:relative;overflow:hidden;margin-bottom:18px;
+}
+.timer-staff{position:absolute;inset:0;opacity:.16;}
+.timer-staff svg{width:100%;height:100%;}
+.timer-label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);position:relative;}
+.timer-clock{font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:700;margin:10px 0 4px;position:relative;letter-spacing:.02em;}
+.timer-sub{font-size:12.5px;color:var(--paper-text);position:relative;margin-bottom:18px;}
+.pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--burgundy-2);margin-right:6px;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%{opacity:.4;}50%{opacity:1;}100%{opacity:.4;}}
+.timer-btn{position:relative;padding:15px 30px;border-radius:12px;border:none;font-size:16px;font-weight:700;cursor:pointer;}
+.timer-btn.start{background:var(--brass);color:var(--ink);}
+.timer-btn.stop{background:var(--burgundy);color:#fff;}
+
+/* ---------- stats ---------- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.stat-box{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:14px;}
+.stat-box .num{font-family:'Fraunces',serif;font-size:26px;font-weight:600;}
+.stat-box .lbl{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+
+/* ---------- table ---------- */
+.rec-list{display:flex;flex-direction:column;gap:10px;}
+.rec-item{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:13px 14px;
+}
+.rec-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.rec-date{font-weight:700;font-size:14.5px;}
+.rec-hours{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--brass-dim);font-size:14.5px;}
+.rec-meta{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+.rec-tag{display:inline-block;background:#EDE7D6;color:var(--ink);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;margin-right:5px;}
+.rec-name{font-weight:700;font-size:14px;margin-bottom:2px;}
+.rec-actions{margin-top:8px;display:flex;gap:8px;}
+.empty-state{text-align:center;padding:40px 12px;color:var(--ink-soft);}
+.empty-state .glyph{font-size:30px;margin-bottom:10px;}
+
+/* ---------- filters ---------- */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.chip{padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink-soft);}
+.chip.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+
+/* ---------- bottom nav ---------- */
+.bottomnav{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:var(--ink);border-top:1px solid var(--line-dark);
+  display:flex;justify-content:center;
+}
+.bottomnav-inner{max-width:520px;width:100%;display:flex;}
+.nav-btn{
+  flex:1;background:none;border:none;color:var(--paper-text);padding:12px 4px 10px;
+  font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-family:'Source Sans 3',sans-serif;font-weight:600;
+}
+.nav-btn .ico{width:20px;height:20px;}
+.nav-btn.active{color:var(--brass);}
+
+/* ---------- modal ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,19,26,.62);z-index:50;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal-panel{
+  background:var(--paper);width:100%;max-width:520px;border-radius:20px 20px 0 0;
+  max-height:92vh;overflow-y:auto;padding:22px 20px 26px;
+}
+.modal-panel.center{border-radius:20px;margin:16px;max-height:88vh;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.modal-head h2{margin:0;font-size:19px;}
+.modal-close{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;padding:4px;}
+.modal-sub{color:var(--ink-soft);font-size:13px;margin:0 0 18px;}
+
+/* ---------- signature pad ---------- */
+.sig-wrap{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;}
+canvas{display:block;width:100%;height:150px;touch-action:none;}
+.sig-actions{display:flex;justify-content:flex-end;padding:6px 8px;background:#faf8f2;border-top:1px dashed var(--line);}
+
+/* ---------- print report ---------- */
+.print-report{display:none;}
+.report-preview{
+  background:#fff;border:1px solid var(--line);padding:22px 18px;border-radius:10px;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#1a1a1a;
+}
+.report-preview .rp-title{text-align:center;margin-bottom:14px;}
+.report-preview .rp-title h1{font-family:'Fraunces',serif;font-size:16px;margin:0 0 2px;letter-spacing:.03em;}
+.report-preview .rp-title p{margin:0;font-size:10px;letter-spacing:.1em;color:#555;}
+.report-preview .rp-fields{margin:14px 0;font-size:11px;line-height:2;}
+.report-preview table{width:100%;border-collapse:collapse;margin:12px 0;font-size:10px;}
+.report-preview th,.report-preview td{border:1px solid #999;padding:4px 5px;text-align:left;}
+.report-preview th{background:#eee;}
+.report-preview .rp-sign{margin-top:22px;font-size:10.5px;line-height:2.6;}
+.report-preview .rp-sign span{border-bottom:1px solid #333;display:inline-block;min-width:170px;margin-left:6px;}
+.report-preview .rp-approvals{display:flex;justify-content:space-between;gap:12px;margin-top:26px;}
+.report-preview .rp-approval-block{flex:1;text-align:center;}
+.report-preview .rp-approval-line{display:block;border-bottom:1px solid #333;height:28px;}
+.report-preview .rp-approval-name{font-weight:700;margin-top:4px;}
+.report-preview .rp-approval-title{font-size:9px;color:#555;margin-top:1px;letter-spacing:.03em;}
+
+/* ---------- loading ---------- */
+.loading-screen{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--ink);color:var(--paper-text);gap:10px;
+}
+.spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--line-dark);border-top-color:var(--brass);animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ---------- misc ---------- */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.divider{height:1px;background:var(--line);margin:16px 0;border:none;}
+.toast{
+  position:fixed;bottom:88px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:30px;font-size:13.5px;
+  box-shadow:var(--shadow);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s, bottom .25s;
+}
+.toast.show{opacity:1;bottom:96px;}
+
+@media print{
+  #app{display:none !important;}
+  #print-root{display:block !important;}
+  .print-report{display:block !important;width:100%;}
+  .print-report .report-preview{
+    font-size:14px;border:none;border-radius:0;padding:0;
+  }
+  .print-report .rp-title h1{font-size:24px;margin-bottom:4px;}
+  .print-report .rp-title p{font-size:12px;letter-spacing:.14em;}
+  .print-report .rp-fields{font-size:14px;line-height:1.9;margin:14px 0;}
+  .print-report table{font-size:13px;margin:12px 0;}
+  .print-report th, .print-report td{padding:7px 9px;}
+  .print-report .rp-sign{font-size:13px;line-height:2.2;margin-top:14px;}
+  .print-report .rp-approvals{margin-top:20px;gap:24px;}
+  .print-report .rp-approval-line{height:36px;}
+  .print-report .rp-approval-name{font-size:14px;margin-top:5px;}
+  .print-report .rp-approval-title{font-size:11px;margin-top:2px;}
+  @page{size:A4 portrait;margin:16mm;}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-screen"><div class="spinner"></div><div>Loading tracker…</div></div></div>
+<div id="print-root"></div>
+
+<script>
+/* =========================================================
+   WORSHIP TEAM PRACTICE HOURS TRACKER
+   Backed by Supabase (Postgres + Auth + Row Level Security).
+   Fill in your project's URL and anon key below — find them in
+   Supabase Dashboard > Project Settings > API.
+   ========================================================= */
+
+const SUPABASE_URL = "https://adscpbjvinmsqyqnewko.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_3wusdm_whhSz_cVygbG2uw_ElE3ZJ-6";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CHURCH_NAME = "SPECIAL WORSHIP ACTION TEAM";
+const MINISTRIES = ["Worship Team","Music Team","Media Team","Audio Team","Livestream Team","Choir","Dance Ministry","Youth Ministry","Kids Ministry","Prayer Team","Other"];
+const ACTIVITIES = ["Personal Practice","Band Rehearsal","Vocal Practice","Sunday Service Preparation","Special Event Practice","Song Arrangement","Instrument Training","Other"];
+
+let STATE = {
+  ready:false,
+  view:"login",             // login | register | member-home | member-history | member-report | admin-dashboard | admin-records | admin-report
+  currentUser:null,
+  users:[],
+  sessions:[],
+  showEndForm:false,
+  toast:"",
+  regRole:"member",
+  filters:{ range:"all", ministry:"all", name:"", from:"", to:"" },
+  reportMember:null,
+  reportFrom:"",
+  reportTo:"",
+  sigEmpty:true,
+  authMessage:""
+};
+
+// ---------- Supabase data layer ----------
+// Row <-> app-state mappers (keep every render function below unchanged,
+// working with the same camelCase shape as the original prototype).
+function mapProfile(row){
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    activeSession: row.active_session_time_in
+      ? { date: row.active_session_date, timeIn: row.active_session_time_in }
+      : null
+  };
+}
+function mapSession(row){
+  return {
+    id: row.id,
+    userId: row.user_id,
+    memberName: row.member_name,
+    date: row.date,
+    timeIn: row.time_in,
+    timeOut: row.time_out,
+    totalMinutes: row.total_minutes,
+    ministry: row.ministry,
+    ministryRole: row.ministry_role,
+    activity: row.activity,
+    witnessName: row.witness_name,
+    witnessRole: row.witness_role,
+    witnessSignature: row.witness_signature,
+    notes: row.notes,
+    createdAt: row.created_at
+  };
+}
+
+async function fetchOwnProfile(authUserId){
+  const { data, error } = await sb.from('profiles').select('*').eq('id', authUserId).single();
+  if(error || !data) return null;
+  return mapProfile(data);
+}
+
+// Row Level Security scopes results automatically:
+// members get only their own profile/sessions back, admins get everyone's.
+async function refreshData(){
+  const { data: profRows, error: pErr } = await sb.from('profiles').select('*');
+  if(!pErr) STATE.users = (profRows||[]).map(mapProfile);
+  const { data: sessRows, error: sErr } = await sb.from('practice_sessions').select('*').order('created_at', {ascending:false});
+  if(!sErr) STATE.sessions = (sessRows||[]).map(mapSession);
+  if(STATE.currentUser){
+    const fresh = STATE.users.find(u=>u.id===STATE.currentUser.id);
+    if(fresh) STATE.currentUser = fresh;
+  }
+}
+
+async function loadAll(){
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session){
+      const profile = await fetchOwnProfile(session.user.id);
+      if(profile){
+        STATE.currentUser = profile;
+        STATE.view = profile.role === 'admin' ? 'admin-dashboard' : 'member-home';
+        await refreshData();
+      }
+    }
+  }catch(e){ console.error(e); }
+  STATE.ready = true;
+  render();
+}
+
+function esc(s){ return (s||"").toString().replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function showToast(msg){
+  STATE.toast = msg;
+  render();
+  setTimeout(()=>{ STATE.toast=""; const t=document.getElementById('toast'); if(t) t.classList.remove('show'); },2200);
+}
+
+function fmtHours(mins){
+  const h = Math.floor(mins/60), m = Math.round(mins%60);
+  return h + ":" + String(m).padStart(2,'0');
+}
+function fmtTime(d){
+  return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+}
+function fmtDate(d){
+  return d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+}
+function fmtDateISO(d){ return d.toISOString().slice(0,10); }
+
+// ---------- staff line svg (signature motif) ----------
+function staffSVG(opts){
+  opts = opts||{};
+  const lines = 5, w=700, h=opts.h||40, pad=6, gap=(h-pad*2)/(lines-1);
+  let ls="";
+  for(let i=0;i<lines;i++){
+    const y = pad + i*gap;
+    ls += `<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="currentColor" stroke-width="1"/>`;
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${ls}</svg>`;
+}
+
+// ============ AUTH (Supabase) ============
+async function handleLogin(e){
+  e.preventDefault();
+  const email = document.getElementById('li-email').value.trim();
+  const pass = document.getElementById('li-pass').value;
+  const errEl = document.getElementById('li-error');
+  errEl.textContent = "Signing in…";
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error){ errEl.textContent = error.message; return; }
+  const profile = await fetchOwnProfile(data.user.id);
+  if(!profile){
+    errEl.textContent = "Signed in, but no profile record exists yet. Contact an admin.";
+    return;
+  }
+  errEl.textContent = "";
+  STATE.currentUser = profile;
+  STATE.view = profile.role === 'admin' ? 'admin-dashboard' : 'member-home';
+  await refreshData();
+  render();
+}
+
+async function handleRegister(e){
+  e.preventDefault();
+  const name = document.getElementById('rg-name').value.trim();
+  const email = document.getElementById('rg-email').value.trim();
+  const pass = document.getElementById('rg-pass').value;
+  const errEl = document.getElementById('rg-error');
+  if(!name || !email || pass.length < 6){
+    errEl.textContent = "Fill in your name, email, and a password (6+ characters).";
+    return;
+  }
+  errEl.textContent = "Creating account…";
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { name, role: 'member' } }
+  });
+  if(error){ errEl.textContent = error.message; return; }
+  errEl.textContent = "";
+  if(!data.session){
+    // Email confirmation is required before this account can log in.
+    STATE.authMessage = "Account created. Check " + email + " for a confirmation link, then log in.";
+    STATE.view = 'login';
+    render();
+    return;
+  }
+  const profile = await fetchOwnProfile(data.user.id);
+  STATE.currentUser = profile;
+  STATE.view = profile.role === 'admin' ? 'admin-dashboard' : 'member-home';
+  await refreshData();
+  render();
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  STATE.currentUser = null;
+  STATE.users = [];
+  STATE.sessions = [];
+  STATE.view = 'login';
+  STATE.authMessage = "";
+  render();
+}
+
+// ============ PRACTICE SESSION (manual time entry) ============
+function openEndForm(){
+  STATE.showEndForm = true;
+  STATE.sigEmpty = true;
+  render();
+  setTimeout(setupSignaturePad, 30);
+}
+function closeEndForm(){
+  STATE.showEndForm = false;
+  render();
+}
+
+async function submitEndForm(e){
+  e.preventDefault();
+  const u = STATE.currentUser;
+  const errEl = document.getElementById('ef-error');
+  const dateStr = document.getElementById('ef-date').value;
+  const timeInStr = document.getElementById('ef-time-in').value;
+  const timeOutStr = document.getElementById('ef-time-out').value;
+  const ministry = document.getElementById('ef-ministry').value;
+  const ministryOther = document.getElementById('ef-ministry-other') ? document.getElementById('ef-ministry-other').value.trim() : "";
+  const ministryRole = document.getElementById('ef-role').value.trim();
+  const activity = document.getElementById('ef-activity').value;
+  const activityOther = document.getElementById('ef-activity-other') ? document.getElementById('ef-activity-other').value.trim() : "";
+  const witnessName = document.getElementById('ef-witness-name').value.trim();
+  const witnessRole = document.getElementById('ef-witness-role').value.trim();
+  const notes = document.getElementById('ef-notes').value.trim();
+
+  if(!dateStr || !timeInStr || !timeOutStr){
+    errEl.textContent = "Date, time in, and time out are required.";
+    return;
+  }
+  if(!ministry || (ministry==="Other" && !ministryOther) || !activity || (activity==="Other" && !activityOther) || !witnessName){
+    errEl.textContent = "Ministry, activity, and witness name are required.";
+    return;
+  }
+
+  const timeIn = new Date(`${dateStr}T${timeInStr}:00`);
+  let timeOut = new Date(`${dateStr}T${timeOutStr}:00`);
+  if(timeOut <= timeIn){
+    // overnight session (e.g. 11:00 PM - 12:30 AM) — roll time out to the next day
+    timeOut = new Date(timeOut.getTime() + 24*60*60*1000);
+  }
+  const totalMinutes = Math.max(1, Math.round((timeOut - timeIn)/60000));
+  if(totalMinutes > 18*60){
+    errEl.textContent = "That's over 18 hours — please double-check the times you entered.";
+    return;
+  }
+  errEl.textContent = "";
+
+  let signature = null;
+  const canvas = document.getElementById('sig-canvas');
+  if(canvas && !STATE.sigEmpty){
+    signature = canvas.toDataURL('image/png');
+  }
+
+  const insertRow = {
+    user_id: u.id,
+    member_name: u.name,
+    date: dateStr,
+    time_in: timeIn.toISOString(),
+    time_out: timeOut.toISOString(),
+    total_minutes: totalMinutes,
+    ministry: ministry==="Other" ? (ministryOther||"Other") : ministry,
+    ministry_role: ministryRole,
+    activity: activity==="Other" ? (activityOther||"Other") : activity,
+    witness_name: witnessName,
+    witness_role: witnessRole,
+    witness_signature: signature,
+    notes
+  };
+  const { error: insertErr } = await sb.from('practice_sessions').insert([insertRow]);
+  if(insertErr){ errEl.textContent = "Couldn't save: " + insertErr.message; return; }
+
+  await refreshData();
+  STATE.showEndForm = false;
+  showToast("Practice session saved.");
+}
+
+async function clearMyRecords(){
+  const u = STATE.currentUser;
+  const mine = STATE.sessions.filter(s=>s.userId===u.id);
+  if(mine.length === 0){
+    showToast("You don't have any records to clear.");
+    return;
+  }
+  const sure = confirm(
+    `This will PERMANENTLY delete all ${mine.length} of your practice records. ` +
+    `This cannot be undone — there is no backup copy. Are you sure you want to start fresh?`
+  );
+  if(!sure) return;
+
+  const { error } = await sb.from('practice_sessions').delete().eq('user_id', u.id);
+  if(error){
+    showToast("Couldn't clear records: " + error.message);
+    return;
+  }
+  await refreshData();
+  showToast("Your old records were cleared. Starting fresh.");
+  openEndForm();
+}
+
+function setupSignaturePad(){
+  const canvas = document.getElementById('sig-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    ctx.scale(2,2);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1B2430';
+  }
+  resize();
+  let drawing = false;
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+  function start(e){ drawing = true; STATE.sigEmpty = false; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function move(e){ if(!drawing) return; const p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+  function end(){ drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+  const clearBtn = document.getElementById('sig-clear');
+  if(clearBtn) clearBtn.onclick = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); STATE.sigEmpty = true; };
+}
+
+// ============ ADMIN ============
+async function deleteSession(id){
+  if(!confirm("Delete this practice record? This cannot be undone.")) return;
+  const { error } = await sb.from('practice_sessions').delete().eq('id', id);
+  if(error){ showToast("Couldn't delete: " + error.message); return; }
+  await refreshData();
+  showToast("Record deleted.");
+}
+
+function setFilterRange(r){ STATE.filters.range = r; render(); }
+function setFilterMinistry(m){ STATE.filters.ministry = m; render(); }
+
+function withinRange(dateStr, range, from, to){
+  const d = new Date(dateStr+"T00:00:00");
+  const now = new Date();
+  if(range==="today"){
+    return dateStr === fmtDateISO(now);
+  }
+  if(range==="week"){
+    const start = new Date(now); start.setDate(now.getDate()-now.getDay());
+    start.setHours(0,0,0,0);
+    return d >= start;
+  }
+  if(range==="month"){
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }
+  if(range==="custom" && from && to){
+    return dateStr >= from && dateStr <= to;
+  }
+  return true;
+}
+
+function filteredSessions(){
+  return STATE.sessions.filter(s=>{
+    if(!withinRange(s.date, STATE.filters.range, STATE.filters.from, STATE.filters.to)) return false;
+    if(STATE.filters.ministry !== "all" && s.ministry !== STATE.filters.ministry) return false;
+    if(STATE.filters.name && !s.memberName.toLowerCase().includes(STATE.filters.name.toLowerCase())) return false;
+    return true;
+  });
+}
+
+// ============ RENDER ============
+function render(){
+  const app = document.getElementById('app');
+  if(!STATE.ready){ app.innerHTML = `<div class="loading-screen"><div class="spinner"></div><div>Loading tracker…</div></div>`; return; }
+
+  if(!STATE.currentUser){
+    app.innerHTML = renderTopbar(false) + renderAuth();
+    attachAuthHandlers();
+    renderPrintRoot();
+    return;
+  }
+
+  const isAdmin = STATE.currentUser.role === 'admin';
+  let body = "";
+  if(isAdmin){
+    if(STATE.view==='admin-records') body = renderAdminRecords();
+    else if(STATE.view==='admin-report') body = renderAdminReport();
+    else body = renderAdminDashboard();
+  } else {
+    if(STATE.view==='member-history') body = renderMemberHistory();
+    else if(STATE.view==='member-report') body = renderMemberReport();
+    else body = renderMemberHome();
+  }
+
+  app.innerHTML = renderTopbar(true) + `<div class="content">${body}</div>` + renderBottomNav(isAdmin) + renderToast();
+
+  if(!isAdmin && STATE.showEndForm){
+    app.innerHTML += renderEndForm();
+  }
+
+  attachViewHandlers(isAdmin);
+  renderPrintRoot();
+  const t = document.getElementById('toast');
+  if(t && STATE.toast){ requestAnimationFrame(()=>t.classList.add('show')); }
+}
+
+function renderToast(){
+  return STATE.toast ? `<div class="toast" id="toast">${esc(STATE.toast)}</div>` : `<div class="toast" id="toast"></div>`;
+}
+
+function renderTopbar(loggedIn){
+  const u = STATE.currentUser;
+  return `
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand">
+        <span class="eyebrow">${esc(CHURCH_NAME)}</span>
+        <span class="title">Practice Hours Tracker</span>
+      </div>
+      ${loggedIn && u ? `
+      <div class="user-chip">
+        <div class="who"><b>${esc(u.name)}</b>${u.role==='admin'?'Admin':'Member'}</div>
+        <button class="logout-btn" onclick="logout()">Log out</button>
+      </div>` : ``}
+    </div>
+    <div class="staff" style="color:var(--brass)">${staffSVG({h:14})}</div>
+  </div>`;
+}
+
+function renderBottomNav(isAdmin){
+  if(isAdmin){
+    return `
+    <div class="bottomnav"><div class="bottomnav-inner">
+      <button class="nav-btn ${STATE.view==='admin-dashboard'?'active':''}" onclick="setView('admin-dashboard')">Dashboard</button>
+      <button class="nav-btn ${STATE.view==='admin-records'?'active':''}" onclick="setView('admin-records')">Records</button>
+      <button class="nav-btn ${STATE.view==='admin-report'?'active':''}" onclick="setView('admin-report')">Report</button>
+    </div></div>`;
+  }
+  return `
+  <div class="bottomnav"><div class="bottomnav-inner">
+    <button class="nav-btn ${STATE.view==='member-home'?'active':''}" onclick="setView('member-home')">Practice</button>
+    <button class="nav-btn ${STATE.view==='member-history'?'active':''}" onclick="setView('member-history')">History</button>
+    <button class="nav-btn ${STATE.view==='member-report'?'active':''}" onclick="setView('member-report')">Report</button>
+  </div></div>`;
+}
+
+function setView(v){ STATE.view = v; render(); }
+
+// ---- AUTH VIEWS ----
+function renderAuth(){
+  if(STATE.view === 'register') return renderRegister();
+  return `
+  <div class="content narrow">
+    <div class="auth-wrap">
+      <div class="auth-logo" style="color:var(--brass)">${staffSVG({h:22})}</div>
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub">Sign in to log or review practice hours.</p>
+      ${STATE.authMessage ? `<div class="notice">${esc(STATE.authMessage)}</div>` : ``}
+      <form id="login-form">
+        <div class="field"><label>Email</label><input id="li-email" type="email" required placeholder="you@church.org"></div>
+        <div class="field"><label>Password</label><input id="li-pass" type="password" required placeholder="••••••••"></div>
+        <div class="error-text" id="li-error"></div>
+        <button class="btn btn-primary" type="submit">Log in</button>
+      </form>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--ink-soft)">
+        New here? <button class="link-btn" onclick="STATE.view='register';render()">Create an account</button>
+      </p>
+    </div>
+  </div>`;
+}
+
+function renderRegister(){
+  return `
+  <div class="content narrow">
+    <div class="auth-wrap">
+      <div class="auth-logo" style="color:var(--brass)">${staffSVG({h:22})}</div>
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-sub">Set up access for the practice tracker.</p>
+      <form id="register-form">
+        <div class="field"><label>Full name</label><input id="rg-name" required placeholder="Joshua Dela Cruz"></div>
+        <div class="field"><label>Email</label><input id="rg-email" type="email" required placeholder="you@church.org"></div>
+        <div class="field"><label>Password</label><input id="rg-pass" type="password" required placeholder="At least 4 characters"></div>
+        <div class="error-text" id="rg-error"></div>
+        <button class="btn btn-primary" type="submit">Create account</button>
+      </form>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--ink-soft)">
+        Already have an account? <button class="link-btn" onclick="STATE.view='login';render()">Log in</button>
+      </p>
+    </div>
+  </div>`;
+}
+
+function attachAuthHandlers(){
+  const lf = document.getElementById('login-form');
+  if(lf) lf.addEventListener('submit', handleLogin);
+  const rf = document.getElementById('register-form');
+  if(rf) rf.addEventListener('submit', handleRegister);
+}
+
+// ---- MEMBER VIEWS ----
+function renderMemberHome(){
+  const u = STATE.currentUser;
+  const mySessions = STATE.sessions.filter(s=>s.userId===u.id).slice(0,4);
+  const totalMinutes = STATE.sessions.filter(s=>s.userId===u.id).reduce((a,s)=>a+s.totalMinutes,0);
+
+  return `
+    <div class="timer-card">
+      <div class="timer-staff">${staffSVG({h:120})}</div>
+      <div class="timer-label">LOG A PRACTICE SESSION</div>
+      <div class="timer-sub" style="margin-top:8px">Enter the date and times yourself, then fill in the details.</div>
+      <button class="timer-btn start" onclick="openEndForm()">Log Practice Session</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num">${STATE.sessions.filter(s=>s.userId===u.id).length}</div><div class="lbl">Sessions logged</div></div>
+      <div class="stat-box"><div class="num mono">${fmtHours(totalMinutes)}</div><div class="lbl">Total hours</div></div>
+    </div>
+    <div class="section-title">Recent practice</div>
+    ${mySessions.length ? `<div class="rec-list">${mySessions.map(renderRecItem).join('')}</div>` :
+      `<div class="empty-state"><div class="glyph">♪</div>Nothing logged yet.<br>Log your first session above.</div>`}
+  `;
+}
+
+function renderRecItem(s){
+  return `
+  <div class="rec-item">
+    <div class="rec-top">
+      <div class="rec-date">${fmtDate(new Date(s.date+"T00:00:00"))}</div>
+      <div class="rec-hours">${fmtHours(s.totalMinutes)} hrs</div>
+    </div>
+    <div class="rec-meta">
+      <span class="rec-tag">${esc(s.ministry)}</span>${esc(s.activity)}<br>
+      ${fmtTime(new Date(s.timeIn))} – ${fmtTime(new Date(s.timeOut))} · Witness: ${esc(s.witnessName)}${s.witnessRole? " ("+esc(s.witnessRole)+")":""}
+    </div>
+  </div>`;
+}
+
+function renderMemberHistory(){
+  const u = STATE.currentUser;
+  const mine = STATE.sessions.filter(s=>s.userId===u.id);
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="section-title" style="margin-bottom:0">Your practice history</div>
+      <button class="btn btn-burgundy btn-sm" onclick="clearMyRecords()">Start New Records</button>
+    </div>
+    ${mine.length ? `<div class="rec-list">${mine.map(renderRecItem).join('')}</div>` :
+      `<div class="empty-state"><div class="glyph">♪</div>No sessions recorded yet.</div>`}
+  `;
+}
+
+function renderMemberReport(){
+  const u = STATE.currentUser;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const from = STATE.reportFrom || thisMonth;
+  const to = STATE.reportTo || thisMonth;
+  const rangeSessions = sessionsInRange(STATE.sessions.filter(s=>s.userId===u.id), from, to);
+  return `
+    <div class="section-title">Printable report</div>
+    <div class="card">
+      <div class="two-col">
+        <div class="field"><label>From month</label><input type="month" value="${from}" onchange="STATE.reportFrom=this.value;render()"></div>
+        <div class="field"><label>To month</label><input type="month" value="${to}" onchange="STATE.reportTo=this.value;render()"></div>
+      </div>
+      <div class="hint">${rangeSessions.length} session${rangeSessions.length===1?'':'s'} found — prints as one report so you don't need separate pages per month.</div>
+      <button class="btn btn-brass" style="margin-top:14px" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+    <div class="section-title">Preview</div>
+    ${renderReportPreview(u.name, rangeLabel(from,to), rangeSessions)}
+  `;
+}
+
+function monthFromISO(m){
+  const [y,mo] = m.split('-').map(Number);
+  return new Date(y, mo-1, 1).toLocaleDateString([], {month:'long', year:'numeric'});
+}
+
+function lastDayOfMonthISO(m){
+  const [y,mo] = m.split('-').map(Number);
+  return new Date(y, mo, 0).toISOString().slice(0,10); // day 0 of next month = last day of this month
+}
+
+function sessionsInRange(list, fromMonth, toMonth){
+  let from = fromMonth, to = toMonth;
+  if(from > to){ const t = from; from = to; to = t; } // tolerate swapped inputs
+  const fromDate = from + "-01";
+  const toDate = lastDayOfMonthISO(to);
+  return list.filter(s => s.date >= fromDate && s.date <= toDate)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function rangeLabel(fromMonth, toMonth){
+  let from = fromMonth, to = toMonth;
+  if(from > to){ const t = from; from = to; to = t; }
+  return from === to ? monthFromISO(from) : `${monthFromISO(from)} – ${monthFromISO(to)}`;
+}
+
+function renderReportPreview(memberName, monthLabel, sessions){
+  const totalMinutes = sessions.reduce((a,s)=>a+s.totalMinutes,0);
+  const ministries = [...new Set(sessions.map(s=>s.ministry))].join(', ') || "—";
+  return `
+  <div class="report-preview">
+    <div class="rp-title">
+      <h1>${esc(CHURCH_NAME)}</h1>
+      <p>WORSHIP TEAM PRACTICE HOURS</p>
+    </div>
+    <div class="rp-fields">
+      Member Name: <b>${esc(memberName)}</b><br>
+      Ministry: <b>${esc(ministries)}</b><br>
+      Period: <b>${esc(monthLabel)}</b>
+    </div>
+    <table>
+      <thead><tr><th>Date</th><th>Time In</th><th>Time Out</th><th>Hours</th><th>Activity</th><th>Witness</th></tr></thead>
+      <tbody>
+        ${sessions.length ? sessions.map(s=>`<tr>
+          <td>${fmtDate(new Date(s.date+"T00:00:00"))}</td>
+          <td>${fmtTime(new Date(s.timeIn))}</td>
+          <td>${fmtTime(new Date(s.timeOut))}</td>
+          <td>${fmtHours(s.totalMinutes)}</td>
+          <td>${esc(s.activity)}</td>
+          <td>${esc(s.witnessName)}</td>
+        </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:#888">No sessions this month</td></tr>`}
+      </tbody>
+    </table>
+    <div class="rp-fields">
+      Total Sessions: <b>${sessions.length}</b><br>
+      Total Practice Hours: <b>${fmtHours(totalMinutes)}</b>
+    </div>
+    <div class="rp-sign">
+      Prepared by: <span>${esc(memberName)}</span>
+    </div>
+    <div class="rp-approvals">
+      <div class="rp-approval-block">
+        <span class="rp-approval-line"></span>
+        <div class="rp-approval-name">Peniel Rocha</div>
+        <div class="rp-approval-title">S.W.A.T. Chairman</div>
+      </div>
+      <div class="rp-approval-block">
+        <span class="rp-approval-line"></span>
+        <div class="rp-approval-name">Pastor Roy Rocha</div>
+        <div class="rp-approval-title">Senior Pastor</div>
+      </div>
+      <div class="rp-approval-block">
+        <span class="rp-approval-line"></span>
+        <div class="rp-approval-name">Mylene Polino</div>
+        <div class="rp-approval-title">Finance</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ---- ADMIN VIEWS ----
+function renderAdminDashboard(){
+  const totalMembers = STATE.users.filter(u=>u.role==='member').length;
+  const totalSessions = STATE.sessions.length;
+  const totalMinutes = STATE.sessions.reduce((a,s)=>a+s.totalMinutes,0);
+
+  const byMember = {};
+  STATE.sessions.forEach(s=>{ byMember[s.memberName] = (byMember[s.memberName]||0) + s.totalMinutes; });
+  const topMembers = Object.entries(byMember).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  const recent = filteredSessions().slice(0,5);
+
+  return `
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num">${totalMembers}</div><div class="lbl">Total members</div></div>
+      <div class="stat-box"><div class="num">${totalSessions}</div><div class="lbl">Practice sessions</div></div>
+      <div class="stat-box"><div class="num mono">${fmtHours(totalMinutes)}</div><div class="lbl">Total practice hours</div></div>
+      <div class="stat-box"><div class="num">${topMembers.length}</div><div class="lbl">Most active tracked</div></div>
+    </div>
+    <div class="section-title">Most active members</div>
+    <div class="card">
+      ${topMembers.length ? topMembers.map(([name,mins],i)=>`
+        <div style="display:flex;justify-content:space-between;padding:8px 0;${i<topMembers.length-1?'border-bottom:1px solid var(--line)':''}">
+          <span style="font-weight:600">${i+1}. ${esc(name)}</span>
+          <span class="mono" style="color:var(--brass-dim);font-weight:700">${fmtHours(mins)} hrs</span>
+        </div>`).join('') : `<div style="color:var(--ink-soft);font-size:13.5px">No sessions logged yet.</div>`}
+    </div>
+    <div class="section-title">Recent records</div>
+    ${recent.length ? `<div class="rec-list">${recent.map(renderAdminRecItem).join('')}</div>` :
+      `<div class="empty-state"><div class="glyph">♪</div>No records yet.</div>`}
+  `;
+}
+
+function renderAdminRecItem(s){
+  return `
+  <div class="rec-item">
+    <div class="rec-name">${esc(s.memberName)}</div>
+    <div class="rec-top">
+      <div class="rec-date">${fmtDate(new Date(s.date+"T00:00:00"))}</div>
+      <div class="rec-hours">${fmtHours(s.totalMinutes)} hrs</div>
+    </div>
+    <div class="rec-meta">
+      <span class="rec-tag">${esc(s.ministry)}</span>${esc(s.activity)}<br>
+      ${fmtTime(new Date(s.timeIn))} – ${fmtTime(new Date(s.timeOut))} · Witness: ${esc(s.witnessName)}
+    </div>
+    <div class="rec-actions">
+      <button class="btn btn-ghost btn-sm" onclick="deleteSession('${s.id}')">Delete</button>
+    </div>
+  </div>`;
+}
+
+function renderAdminRecords(){
+  const list = filteredSessions();
+  const f = STATE.filters;
+  return `
+    <div class="section-title">Filter records</div>
+    <div class="filter-row">
+      ${['all','today','week','month','custom'].map(r=>`<button class="chip ${f.range===r?'active':''}" onclick="setFilterRange('${r}')">${r==='all'?'All time':r==='today'?'Today':r==='week'?'This week':r==='month'?'This month':'Custom'}</button>`).join('')}
+    </div>
+    ${f.range==='custom' ? `
+    <div class="two-col" style="margin-bottom:12px">
+      <div class="field" style="margin-bottom:0"><label>From</label><input type="date" value="${f.from}" onchange="STATE.filters.from=this.value;render()"></div>
+      <div class="field" style="margin-bottom:0"><label>To</label><input type="date" value="${f.to}" onchange="STATE.filters.to=this.value;render()"></div>
+    </div>` : ``}
+    <div class="field"><label>Ministry</label>
+      <select onchange="setFilterMinistry(this.value)">
+        <option value="all" ${f.ministry==='all'?'selected':''}>All ministries</option>
+        ${MINISTRIES.map(m=>`<option value="${m}" ${f.ministry===m?'selected':''}>${m}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Member name</label><input placeholder="Search by name…" value="${esc(f.name)}" oninput="STATE.filters.name=this.value;render()"></div>
+    <div class="hint" style="margin-bottom:14px">${list.length} record${list.length===1?'':'s'} found.</div>
+    ${list.length ? `<div class="rec-list">${list.map(renderAdminRecItem).join('')}</div>` :
+      `<div class="empty-state"><div class="glyph">♪</div>No matching records.</div>`}
+  `;
+}
+
+function renderAdminReport(){
+  const members = STATE.users.filter(u=>u.role==='member');
+  const selectedId = STATE.reportMember || (members[0] ? members[0].id : null);
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const from = STATE.reportFrom || thisMonth;
+  const to = STATE.reportTo || thisMonth;
+  const member = members.find(m=>m.id===selectedId);
+  const sessions = member ? sessionsInRange(STATE.sessions.filter(s=>s.userId===member.id), from, to) : [];
+
+  return `
+    <div class="section-title">Generate member report</div>
+    <div class="card">
+      <div class="field"><label>Member</label>
+        <select onchange="STATE.reportMember=this.value;render()">
+          ${members.map(m=>`<option value="${m.id}" ${m.id===selectedId?'selected':''}>${esc(m.name)}</option>`).join('') || '<option>No members yet</option>'}
+        </select>
+      </div>
+      <div class="two-col">
+        <div class="field"><label>From month</label><input type="month" value="${from}" onchange="STATE.reportFrom=this.value;render()"></div>
+        <div class="field"><label>To month</label><input type="month" value="${to}" onchange="STATE.reportTo=this.value;render()"></div>
+      </div>
+      <div class="hint">${sessions.length} session${sessions.length===1?'':'s'} — prints as one report across the whole range.</div>
+      <button class="btn btn-brass" style="margin-top:14px" onclick="window.print()" ${member?'':'disabled'}>Print / Save as PDF</button>
+    </div>
+    <div class="section-title">Preview</div>
+    ${member ? renderReportPreview(member.name, rangeLabel(from,to), sessions) : `<div class="empty-state">Add a member first.</div>`}
+  `;
+}
+
+// ---- PRACTICE LOG FORM (modal) ----
+function renderEndForm(){
+  const today = new Date().toISOString().slice(0,10);
+  return `
+  <div class="modal-overlay">
+    <div class="modal-panel">
+      <div class="modal-head"><h2>Log a practice session</h2><button class="modal-close" onclick="closeEndForm()">&times;</button></div>
+      <p class="modal-sub">Enter when you practiced, then fill in the details below.</p>
+      <form id="end-form">
+        <div class="field"><label>Date *</label><input id="ef-date" type="date" value="${today}" required></div>
+        <div class="two-col">
+          <div class="field"><label>Time In *</label><input id="ef-time-in" type="time" required></div>
+          <div class="field"><label>Time Out *</label><input id="ef-time-out" type="time" required></div>
+        </div>
+        <div class="field"><label>Ministry served *</label>
+          <select id="ef-ministry" onchange="toggleOtherField('ef-ministry','ef-ministry-other-wrap')">
+            <option value="">Select ministry…</option>
+            ${MINISTRIES.map(m=>`<option value="${m}">${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" id="ef-ministry-other-wrap" style="display:none"><label>Specify ministry</label><input id="ef-ministry-other" placeholder="Ministry name"></div>
+        <div class="field"><label>Ministry role</label><input id="ef-role" placeholder="e.g. Keyboardist, Vocalist, Audio Operator"></div>
+        <div class="field"><label>Activity performed *</label>
+          <select id="ef-activity" onchange="toggleOtherField('ef-activity','ef-activity-other-wrap')">
+            <option value="">Select activity…</option>
+            ${ACTIVITIES.map(a=>`<option value="${a}">${a}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" id="ef-activity-other-wrap" style="display:none"><label>Specify activity</label><input id="ef-activity-other" placeholder="Activity name"></div>
+        <hr class="divider">
+        <div class="field"><label>Witness name *</label><input id="ef-witness-name" placeholder="e.g. Joshua Dela Cruz"></div>
+        <div class="field"><label>Witness ministry/role</label><input id="ef-witness-role" placeholder="e.g. Worship Leader"></div>
+        <div class="field"><label>Witness signature (optional)</label>
+          <div class="sig-wrap">
+            <canvas id="sig-canvas"></canvas>
+            <div class="sig-actions"><button type="button" class="link-btn" id="sig-clear">Clear</button></div>
+          </div>
+        </div>
+        <div class="field"><label>Notes</label><textarea id="ef-notes" placeholder="Optional comments"></textarea></div>
+        <div class="error-text" id="ef-error"></div>
+        <div class="btn-row" style="margin-top:6px">
+          <button type="button" class="btn btn-ghost" onclick="closeEndForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save session</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+
+function toggleOtherField(selectId, wrapId){
+  const val = document.getElementById(selectId).value;
+  document.getElementById(wrapId).style.display = val==='Other' ? 'block' : 'none';
+}
+
+function attachViewHandlers(isAdmin){
+  const ef = document.getElementById('end-form');
+  if(ef) ef.addEventListener('submit', submitEndForm);
+}
+
+function renderPrintRoot(){
+  const root = document.getElementById('print-root');
+  let html = "";
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const from = STATE.reportFrom || thisMonth;
+  const to = STATE.reportTo || thisMonth;
+  if(STATE.currentUser && STATE.currentUser.role!=='admin' && STATE.view==='member-report'){
+    const u = STATE.currentUser;
+    const sessions = sessionsInRange(STATE.sessions.filter(s=>s.userId===u.id), from, to);
+    html = `<div class="print-report">${renderReportPreview(u.name, rangeLabel(from,to), sessions)}</div>`;
+  } else if(STATE.currentUser && STATE.currentUser.role==='admin' && STATE.view==='admin-report'){
+    const members = STATE.users.filter(u=>u.role==='member');
+    const selectedId = STATE.reportMember || (members[0] ? members[0].id : null);
+    const member = members.find(m=>m.id===selectedId);
+    if(member){
+      const sessions = sessionsInRange(STATE.sessions.filter(s=>s.userId===member.id), from, to);
+      html = `<div class="print-report">${renderReportPreview(member.name, rangeLabel(from,to), sessions)}</div>`;
+    }
+  }
+  root.innerHTML = html;
+}
+
+// ---------- shrink report to fit one printed page ----------
+// Note: CSS `transform: scale()` only affects how an element is *painted* —
+// it doesn't change the layout size the browser uses to decide page breaks,
+// so it can't prevent overflow onto a second printed page. `zoom` does
+// change layout size, so we use that instead (supported in Chrome/Edge/Safari,
+// which covers the vast majority of desktop print flows).
+function fitReportToPage(){
+  const el = document.querySelector('.print-report .report-preview');
+  if(!el) return;
+  el.style.zoom = '1';
+  const pxPerMM = 96 / 25.4;
+  const availableHeightPx = (297 - 32) * pxPerMM; // A4 height minus 16mm top+bottom margins
+  const contentHeight = el.scrollHeight; // forces a synchronous layout read at zoom:1
+  if(contentHeight > availableHeightPx){
+    const scale = Math.max(0.5, availableHeightPx / contentHeight);
+    el.style.zoom = String(scale);
+  }
+}
+function resetReportScale(){
+  const el = document.querySelector('.print-report .report-preview');
+  if(el) el.style.zoom = '1';
+}
+window.addEventListener('beforeprint', fitReportToPage);
+window.addEventListener('afterprint', resetReportScale);
+
+// ---------- boot ----------
+loadAll();
+</script>
+</body>
+</html>
